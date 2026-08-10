@@ -1,0 +1,1 @@
+# shopsre-platform
