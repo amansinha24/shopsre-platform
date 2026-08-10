@@ -1,0 +1,6 @@
+bin/
+vendor/
+*.test
+coverage.out
+.env
+README.md
