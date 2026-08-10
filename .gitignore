@@ -1,0 +1,38 @@
+# ── Terraform ──────────────────────────
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+**/.terraform.lock.hcl
+
+# ── Go ─────────────────────────────────
+**/bin/
+**/vendor/
+**/*.test
+**/coverage.out
+
+# ── Python ─────────────────────────────
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
+**/.pytest_cache/
+
+# ── Node / React ────────────────────────
+**/node_modules/
+**/build/
+**/.env.local
+
+# ── Secrets — NEVER commit ─────────────
+.env
+*.env
+!.env.example
+kubeconfig
+**/secrets.yaml
+
+# ── Editor ─────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
