@@ -1,0 +1,70 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shopsre-ingress
+  namespace: production
+  annotations:
+    # Tell Kubernetes to use AWS ALB
+    kubernetes.io/ingress.class: alb
+
+    # Internet facing — accessible from browser
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # Use IP mode — routes directly to pod IPs
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # Health check settings
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+
+    # Idle timeout
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=60
+spec:
+  rules:
+    - http:
+        paths:
+          # Frontend — serves the React UI
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
+
+          # Auth Service
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8081
+
+          # Orders Service
+          - path: /api/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: orders-service
+                port:
+                  number: 8082
+
+          # Notifications Service
+          - path: /api/notifications
+            pathType: Prefix
+            backend:
+              service:
+                name: notifications-service
+                port:
+                  number: 8083
+
+          # Worker Service
+          - path: /api/worker
+            pathType: Prefix
+            backend:
+              service:
+                name: worker-service
+                port:
+                  number: 8084

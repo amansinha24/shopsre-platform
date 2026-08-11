@@ -1,14 +1,13 @@
 import axios from 'axios';
 
-// Base URL for all API calls
-// In production on EKS this points to the ALB
-// Locally this points to localhost
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost';
+// ALB URL — routes to correct service based on path
+const BASE_URL = process.env.REACT_APP_API_URL || 
+  'http://k8s-producti-shopsrei-983d6c7a3d-924921885.ap-south-1.elb.amazonaws.com';
 
-// Auth Service calls
+// Auth Service calls — routed via /api/auth path
 export const authAPI = {
   register: async (name, email, password) => {
-    const response = await axios.post(`${BASE_URL}:8081/api/auth/register`, {
+    const response = await axios.post(`${BASE_URL}/api/auth/register`, {
       name,
       email,
       password,
@@ -17,7 +16,7 @@ export const authAPI = {
   },
 
   login: async (email, password) => {
-    const response = await axios.post(`${BASE_URL}:8081/api/auth/login`, {
+    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
       email,
       password,
     });
@@ -25,11 +24,11 @@ export const authAPI = {
   },
 };
 
-// Orders Service calls
+// Orders Service calls — routed via /api/orders path
 export const ordersAPI = {
   createOrder: async (token, itemName, quantity, price) => {
     const response = await axios.post(
-      `${BASE_URL}:8082/api/orders`,
+      `${BASE_URL}/api/orders`,
       { item_name: itemName, quantity, price },
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -37,32 +36,32 @@ export const ordersAPI = {
   },
 
   getOrders: async (token) => {
-    const response = await axios.get(`${BASE_URL}:8082/api/orders`, {
+    const response = await axios.get(`${BASE_URL}/api/orders`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return response.data;
   },
 };
 
-// Worker Service calls
+// Worker Service calls — routed via /api/worker path
 export const workerAPI = {
   startSimulation: async () => {
     const response = await axios.post(
-      `${BASE_URL}:8084/api/worker/simulate/start`
+      `${BASE_URL}/api/worker/simulate/start`
     );
     return response.data;
   },
 
   stopSimulation: async () => {
     const response = await axios.post(
-      `${BASE_URL}:8084/api/worker/simulate/stop`
+      `${BASE_URL}/api/worker/simulate/stop`
     );
     return response.data;
   },
 
   getStatus: async () => {
     const response = await axios.get(
-      `${BASE_URL}:8084/api/worker/simulate/status`
+      `${BASE_URL}/api/worker/simulate/status`
     );
     return response.data;
   },
