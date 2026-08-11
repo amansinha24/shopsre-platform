@@ -1,6 +1,6 @@
 image:
   repository: 350480401763.dkr.ecr.ap-south-1.amazonaws.com/shopsre/frontend
-  tag: 187be8ba393ae9055c78b120c41480d6b7cfbc4c
+  tag: a9771aa1c726cfe18853b73d007f06787c7b6078
   pullPolicy: Always
 service:
   type: ClusterIP
