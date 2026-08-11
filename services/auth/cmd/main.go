@@ -1,6 +1,6 @@
 package main
 
-// ShopSRE Auth Service v1.0.3
+// ShopSRE Auth Service v1.0.4
 import (
 	"context"
 	"fmt"
