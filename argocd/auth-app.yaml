@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: auth-service
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  # Where the Helm chart lives
+  source:
+    repoURL: https://github.com/amansinha24/shopsre-platform.git
+    targetRevision: HEAD
+    path: helm/auth
+
+  # Where to deploy
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+
+  syncPolicy:
+    automated:
+      prune: true     # delete resources removed from Git
+      selfHeal: true  # fix manual changes made outside Git
+    syncOptions:
+      - CreateNamespace=true
