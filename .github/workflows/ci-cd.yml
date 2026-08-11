@@ -12,7 +12,6 @@ on:
     paths:
       - 'services/**'
 
-# ── Detect which service changed ──────────────────────────────
 jobs:
   detect-changes:
     name: Detect Changes
@@ -40,7 +39,6 @@ jobs:
             frontend:
               - 'services/frontend/**'
 
-  # ── Auth Service ───────────────────────────────────────────────
   auth:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.auth == 'true' }}
@@ -55,7 +53,6 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
-  # ── Orders Service ─────────────────────────────────────────────
   orders:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.orders == 'true' }}
@@ -68,8 +65,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
-  # ── Notifications Service ──────────────────────────────────────
   notifications:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.notifications == 'true' }}
@@ -82,8 +79,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
-  # ── Worker Service ─────────────────────────────────────────────
   worker:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.worker == 'true' }}
@@ -96,8 +93,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
 
-  # ── Frontend ───────────────────────────────────────────────────
   frontend:
     needs: detect-changes
     if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
@@ -109,3 +106,4 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
+      GIT_TOKEN: ${{ secrets.GIT_TOKEN }}
