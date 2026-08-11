@@ -42,11 +42,12 @@ resource "aws_mq_broker" "main" {
   # RabbitMQ engine
   engine_type        = "RabbitMQ"
   engine_version     = "3.13"
-  host_instance_type = "mq.t3.micro"
+  host_instance_type = "mq.m5.large"
 
   # Single instance for cost saving
   # In production use CLUSTER_MULTI_AZ for high availability
   deployment_mode = "SINGLE_INSTANCE"
+  auto_minor_version_upgrade = true
 
   # Network
   subnet_ids         = [var.private_subnet_ids[0]]
