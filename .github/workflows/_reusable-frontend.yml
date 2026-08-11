@@ -15,18 +15,22 @@ on:
         required: true
       AWS_REGION:
         required: true
-
-env:
-  IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/shopsre/${{ inputs.service_name }}
+      GIT_TOKEN:
+        required: true
 
 jobs:
   pipeline:
     name: ${{ inputs.service_name }}
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/shopsre/${{ inputs.service_name }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,25 +90,18 @@ jobs:
           docker push ${{ env.IMAGE_URI }}:${{ github.sha }}
           docker push ${{ env.IMAGE_URI }}:latest
 
-      - name: Deploy to EKS
+      # ── GitOps step ────────────────────────────────────────────
+      - name: Update image tag in Git
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          aws eks update-kubeconfig \
-            --name shopsre-cluster \
-            --region ${{ secrets.AWS_REGION }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          helm upgrade --install frontend \
-            helm/frontend \
-            --namespace production \
-            --set image.repository=${{ env.IMAGE_URI }} \
-            --set image.tag=${{ github.sha }} \
-            --wait \
-            --timeout 5m
+          sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
+            helm/${{ inputs.service_name }}/values.yaml
 
-      - name: Verify Deployment
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          kubectl rollout status deployment/frontend \
-            -n production \
-            --timeout=5m
-          kubectl get pods -n production -l app=frontend
+          git add helm/${{ inputs.service_name }}/values.yaml
+          git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]"
+          git push
+
+          echo "ArgoCD will now sync this change to EKS"

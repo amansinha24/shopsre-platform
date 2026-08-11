@@ -18,18 +18,22 @@ on:
         required: true
       AWS_REGION:
         required: true
-
-env:
-  IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/shopsre/${{ inputs.service_name }}
+      GIT_TOKEN:
+        required: true
 
 jobs:
   pipeline:
     name: ${{ inputs.service_name }}
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/shopsre/${{ inputs.service_name }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -45,18 +49,16 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # ── Stage 1: Install dependencies ──────────────────────────
+      # ── Stage 1: Install and Test ───────────────────────────────
       - name: Install dependencies
         working-directory: services/${{ inputs.service_name }}
         run: pip install -r requirements.txt
 
-      # ── Stage 2: Test ──────────────────────────────────────────
       - name: Test
         working-directory: services/${{ inputs.service_name }}
-        run: |
-          python -m pytest tests/ -v || true
+        run: python -m pytest tests/ -v || true
 
-      # ── Stage 3: Trivy Code Scan ───────────────────────────────
+      # ── Stage 2: Trivy Code Scan ───────────────────────────────
       - name: Trivy Code Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -66,7 +68,7 @@ jobs:
           exit-code: 0
           format: table
 
-      # ── Stage 4: Build Docker image ────────────────────────────
+      # ── Stage 3: Build Docker image ────────────────────────────
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
@@ -78,7 +80,7 @@ jobs:
             -t ${{ env.IMAGE_URI }}:latest \
             .
 
-      # ── Stage 5: Trivy Image Scan ──────────────────────────────
+      # ── Stage 4: Trivy Image Scan ──────────────────────────────
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -87,34 +89,25 @@ jobs:
           exit-code: 0
           format: table
 
-      # ── Stage 6: Push to ECR ───────────────────────────────────
+      # ── Stage 5: Push to ECR ───────────────────────────────────
       - name: Push to ECR
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           docker push ${{ env.IMAGE_URI }}:${{ github.sha }}
           docker push ${{ env.IMAGE_URI }}:latest
 
-      # ── Stage 7: Deploy to EKS ─────────────────────────────────
-      - name: Deploy to EKS
+      # ── Stage 6: Update image tag in Git (GitOps) ─────────────
+      - name: Update image tag in Git
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          aws eks update-kubeconfig \
-            --name shopsre-cluster \
-            --region ${{ secrets.AWS_REGION }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          helm upgrade --install ${{ inputs.service_name }}-service \
-            helm/${{ inputs.service_name }} \
-            --namespace production \
-            --set image.repository=${{ env.IMAGE_URI }} \
-            --set image.tag=${{ github.sha }} \
-            --wait \
-            --timeout 5m
+          sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
+            helm/${{ inputs.service_name }}/values.yaml
 
-      # ── Stage 8: Verify ────────────────────────────────────────
-      - name: Verify Deployment
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          kubectl rollout status deployment/${{ inputs.service_name }}-service \
-            -n production \
-            --timeout=5m
-          kubectl get pods -n production -l app=${{ inputs.service_name }}-service
+          git add helm/${{ inputs.service_name }}/values.yaml
+          git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]"
+          git push
+
+          echo "ArgoCD will now sync this change to EKS"
