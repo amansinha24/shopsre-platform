@@ -1,6 +1,6 @@
 image:
   repository: 350480401763.dkr.ecr.ap-south-1.amazonaws.com/shopsre/orders
-  tag: latest
+  tag: 18fa8efafc05109c246d81b24a727120ca4c1201
   pullPolicy: Always
 service:
   type: ClusterIP
