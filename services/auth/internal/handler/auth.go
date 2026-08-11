@@ -78,8 +78,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	start := time.Now()
 
 	// Start X-Ray subsegment for tracing
-	_, seg := xray.BeginSubsegment(c.Request.Context(), "auth-register")
-	defer seg.Close(nil)
+	ctx, seg := xray.BeginSubsegment(c.Request.Context(), "auth-register")
+	if seg != nil {
+    	defer seg.Close(nil)
+    	_ = ctx
+	}
 
 	// Parse request body
 	var req domain.RegisterRequest
@@ -96,7 +99,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	// Add annotation to X-Ray trace
-	seg.AddAnnotation("email", req.Email)
+	if seg != nil {
+    	seg.AddAnnotation("email", req.Email)
+	}
 
 	// Create user object
 	user := &domain.User{
@@ -146,7 +151,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Start X-Ray subsegment
 	ctx, seg := xray.BeginSubsegment(c.Request.Context(), "auth-login")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+    	_ = ctx
+	}
 
 	// Parse request body
 	var req domain.LoginRequest
@@ -163,7 +171,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Add annotation to X-Ray trace
-	seg.AddAnnotation("email", req.Email)
+	if seg != nil {
+    	seg.AddAnnotation("email", req.Email)
+	}
 
 	// Find user in database
 	user, hashedPassword, err := h.userRepo.FindByEmail(req.Email)
@@ -233,7 +243,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	// Start X-Ray subsegment
 	_, seg := xray.BeginSubsegment(c.Request.Context(), "auth-validate")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	// Get token from Authorization header
 	// Format: "Bearer <token>"
@@ -258,7 +270,9 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 		return
 	}
 
-	seg.AddAnnotation("user_id", fmt.Sprintf("%v", claims["user_id"]))
+	if seg != nil {
+    	seg.AddAnnotation("user_id", fmt.Sprintf("%v", claims["user_id"]))
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"valid":   true,

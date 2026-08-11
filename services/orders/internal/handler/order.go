@@ -96,7 +96,9 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	// Start X-Ray subsegment
 	ctx, seg := xray.BeginSubsegment(c.Request.Context(), "orders-create")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	// Step 1: Validate JWT token by calling Auth Service
 	userID, err := h.validateToken(ctx, c.GetHeader("Authorization"))
@@ -141,6 +143,9 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	// Step 4: Save to PostgreSQL
 	_, dbSeg := xray.BeginSubsegment(ctx, "postgresql-write")
+	if dbSeg != nil {
+    	defer dbSeg.Close(nil)
+	}
 	if err := h.orderRepo.Create(order); err != nil {
 		dbSeg.Close(err)
 		duration := time.Since(start).Seconds()
@@ -159,6 +164,9 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	// This is async — Orders service does not wait for
 	// Notifications or Worker to finish processing
 	_, mqSeg := xray.BeginSubsegment(ctx, "rabbitmq-publish")
+	if mqSeg != nil {
+    	defer mqSeg.Close(nil)
+	}
 	if err := h.publisher.PublishOrderPlaced(ctx, order); err != nil {
 		mqSeg.Close(err)
 		// RabbitMQ failure is not critical
@@ -197,7 +205,9 @@ func (h *OrderHandler) GetOrders(c *gin.Context) {
 
 	// Start X-Ray subsegment
 	ctx, seg := xray.BeginSubsegment(c.Request.Context(), "orders-get")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	// Validate JWT token
 	userID, err := h.validateToken(ctx, c.GetHeader("Authorization"))
@@ -266,7 +276,9 @@ func (h *OrderHandler) validateToken(ctx context.Context, authHeader string) (in
 
 	// Start X-Ray subsegment for this service-to-service call
 	_, seg := xray.BeginSubsegment(ctx, "auth-service-validate")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	// Call Auth Service /api/auth/validate
 	req, err := http.NewRequestWithContext(

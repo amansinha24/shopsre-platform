@@ -62,7 +62,9 @@ func (h *WorkerHandler) StartSimulation(c *gin.Context) {
 
 	// Start X-Ray subsegment
 	_, seg := xray.BeginSubsegment(c.Request.Context(), "worker-simulate-start")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	log.Printf(`{`+
 		`"service":"worker",`+
@@ -106,7 +108,9 @@ func (h *WorkerHandler) StopSimulation(c *gin.Context) {
 	start := time.Now()
 
 	_, seg := xray.BeginSubsegment(c.Request.Context(), "worker-simulate-stop")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	if err := h.simulator.Stop(); err != nil {
 		duration := time.Since(start).Seconds()
@@ -134,7 +138,9 @@ func (h *WorkerHandler) StopSimulation(c *gin.Context) {
 // Frontend polls this to show current memory usage
 func (h *WorkerHandler) SimulationStatus(c *gin.Context) {
 	_, seg := xray.BeginSubsegment(c.Request.Context(), "worker-simulate-status")
-	defer seg.Close(nil)
+	if seg != nil {
+    	defer seg.Close(nil)
+	}
 
 	status := h.simulator.Status()
 
