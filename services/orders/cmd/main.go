@@ -1,5 +1,5 @@
 package main
-// ShopSRE Orders Service v1.0.0
+// ShopSRE Orders Service v1.0.5
 import (
 	"context"
 	"fmt"
