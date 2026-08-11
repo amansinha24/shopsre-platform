@@ -1,6 +1,6 @@
 # ── Stage 1: Build ────────────────────────────────────────────
 # Use official Go image to compile the binary
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Install git (needed for go modules)
 RUN apk add --no-cache git
