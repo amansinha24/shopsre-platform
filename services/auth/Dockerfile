@@ -26,7 +26,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o auth-service ./cmd/...
 # ── Stage 2: Run ──────────────────────────────────────────────
 # Use minimal alpine image — only 5MB
 # Much smaller than the builder image (300MB+)
-FROM alpine:3.19
+FROM alpine:3.21
 
 # Add CA certificates for HTTPS calls
 RUN apk add --no-cache ca-certificates wget
