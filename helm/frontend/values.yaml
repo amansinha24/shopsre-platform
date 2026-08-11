@@ -1,0 +1,33 @@
+image:
+  repository: 350480401763.dkr.ecr.ap-south-1.amazonaws.com/shopsre/frontend
+  tag: latest
+  pullPolicy: Always
+service:
+  type: ClusterIP
+  port: 80
+replicaCount: 2
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 10
+  periodSeconds: 10
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 5
+env:
+  ENV: "production"
+serviceAccount:
+  create: false
+  roleArn: ""

@@ -1,0 +1,36 @@
+image:
+  repository: 350480401763.dkr.ecr.ap-south-1.amazonaws.com/shopsre/notifications
+  tag: latest
+  pullPolicy: Always
+service:
+  type: ClusterIP
+  port: 8083
+replicaCount: 1
+hpa:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 10
+  periodSeconds: 10
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 5
+env:
+  PORT: "8083"
+  ENV: "production"
+  REDIS_PORT: "6379"
+  DRY_RUN: "false"
+serviceAccount:
+  create: true
+  roleArn: "arn:aws:iam::350480401763:role/shopsre-notifications-service-role"

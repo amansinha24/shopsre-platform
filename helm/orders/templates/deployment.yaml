@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-service
+  namespace: production
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: orders-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: orders-service
+    spec:
+      serviceAccountName: orders-service
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: orders
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: ENV
+              value: {{ .Values.env.ENV | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .Values.env.POSTGRES_PORT | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.env.POSTGRES_DB | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.env.POSTGRES_USER | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.env.REDIS_PORT | quote }}
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: postgres-host
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: postgres-password
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: redis-host
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: redis-password
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: rabbitmq-url
+            - name: AUTH_SERVICE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orders-secrets
+                  key: auth-service-url
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}

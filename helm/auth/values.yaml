@@ -1,0 +1,38 @@
+image:
+  repository: 350480401763.dkr.ecr.ap-south-1.amazonaws.com/shopsre/auth
+  tag: latest
+  pullPolicy: Always
+service:
+  type: ClusterIP
+  port: 8081
+replicaCount: 2
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+livenessProbe:
+  path: /healthz
+  initialDelaySeconds: 10
+  periodSeconds: 10
+readinessProbe:
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 5
+env:
+  PORT: "8081"
+  ENV: "production"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "shopsre"
+  POSTGRES_USER: "shopsreAdmin"
+  REDIS_PORT: "6379"
+serviceAccount:
+  create: true
+  roleArn: "arn:aws:iam::350480401763:role/shopsre-auth-service-role"

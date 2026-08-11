@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-service
+  namespace: production
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: notifications-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: notifications-service
+    spec:
+      serviceAccountName: notifications-service
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: notifications
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: ENV
+              value: {{ .Values.env.ENV | quote }}
+            - name: REDIS_PORT
+              value: {{ .Values.env.REDIS_PORT | quote }}
+            - name: DRY_RUN
+              value: {{ .Values.env.DRY_RUN | quote }}
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: notifications-secrets
+                  key: rabbitmq-url
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: notifications-secrets
+                  key: redis-host
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: notifications-secrets
+                  key: redis-password
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
