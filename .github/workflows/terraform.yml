@@ -1,0 +1,107 @@
+name: Terraform Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infra/terraform/**'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  TF_WORKING_DIR: infra/terraform
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      # Step 1 — Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2 — Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # Step 3 — Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.6
+
+      # Step 4 — Terraform Format Check
+      # Fails if code is not properly formatted
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+        continue-on-error: false
+
+      # Step 5 — Terraform Init
+      - name: Terraform Init
+        run: terraform init
+
+      # Step 6 — Terraform Validate
+      # Checks syntax is correct
+      - name: Terraform Validate
+        run: terraform validate
+
+      # Step 7 — Trivy scan for Terraform misconfigurations
+      # Catches security issues in infrastructure code
+      - name: Trivy IaC Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: infra/terraform
+          severity: CRITICAL,HIGH
+          exit-code: 0
+
+      # Step 8 — Terraform Plan
+      # Shows what will change — runs on every PR
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_mq_password: ${{ secrets.MQ_PASSWORD }}
+
+      # Step 9 — Post plan as PR comment
+      # Team can review before applying
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const output = `#### Terraform Plan
+            \`\`\`
+            Plan generated successfully
+            \`\`\`
+            *Pushed by: @${{ github.actor }}*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      # Step 10 — Terraform Apply
+      # Only runs when code is merged to main
+      # Never runs on PRs
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve tfplan
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_mq_password: ${{ secrets.MQ_PASSWORD }}

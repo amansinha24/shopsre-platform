@@ -1,0 +1,143 @@
+name: Reusable Go Service Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+        description: "Service name e.g. auth, orders, worker"
+      service_port:
+        required: true
+        type: string
+        description: "Service port e.g. 8081"
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AWS_ACCOUNT_ID:
+        required: true
+      AWS_REGION:
+        required: true
+
+env:
+  IMAGE_URI: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/shopsre/${{ inputs.service_name }}
+
+jobs:
+  pipeline:
+    name: ${{ inputs.service_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Stage 1: Checkout ──────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── Stage 2: Setup Go ──────────────────────────────────────
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: services/${{ inputs.service_name }}/go.sum
+
+      # ── Stage 3: Configure AWS ─────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # ── Stage 4: Build ─────────────────────────────────────────
+      - name: Build
+        working-directory: services/${{ inputs.service_name }}
+        run: |
+          echo "Building ${{ inputs.service_name }} service..."
+          go build ./...
+          echo "Build successful"
+
+      # ── Stage 5: Test ──────────────────────────────────────────
+      - name: Test
+        working-directory: services/${{ inputs.service_name }}
+        run: |
+          echo "Running tests for ${{ inputs.service_name }}..."
+          go test ./... -v -race -coverprofile=coverage.out
+          go tool cover -func=coverage.out
+
+      # ── Stage 6: Trivy Code Scan ───────────────────────────────
+      # Scans go.mod for vulnerable dependencies
+      # Runs BEFORE building Docker image
+      - name: Trivy Code Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: services/${{ inputs.service_name }}
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+
+      # ── Stage 7: Build Docker image ────────────────────────────
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        working-directory: services/${{ inputs.service_name }}
+        run: |
+          docker build \
+            -t ${{ env.IMAGE_URI }}:${{ github.sha }} \
+            -t ${{ env.IMAGE_URI }}:latest \
+            .
+          echo "Image built: ${{ env.IMAGE_URI }}:${{ github.sha }}"
+
+      # ── Stage 8: Trivy Image Scan ──────────────────────────────
+      # Scans the built Docker image for OS vulnerabilities
+      # Runs AFTER building but BEFORE pushing to ECR
+      - name: Trivy Image Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_URI }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+
+      # ── Stage 9: Push to ECR ───────────────────────────────────
+      # Only on merge to main — never on PRs
+      - name: Push to ECR
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          docker push ${{ env.IMAGE_URI }}:${{ github.sha }}
+          docker push ${{ env.IMAGE_URI }}:latest
+          echo "Pushed ${{ env.IMAGE_URI }}:${{ github.sha }}"
+
+      # ── Stage 10: Deploy to EKS ────────────────────────────────
+      - name: Deploy to EKS
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          aws eks update-kubeconfig \
+            --name shopsre-cluster \
+            --region ${{ secrets.AWS_REGION }}
+
+          helm upgrade --install ${{ inputs.service_name }}-service \
+            helm/${{ inputs.service_name }} \
+            --namespace production \
+            --set image.repository=${{ env.IMAGE_URI }} \
+            --set image.tag=${{ github.sha }} \
+            --wait \
+            --timeout 5m
+
+      # ── Stage 11: Verify ───────────────────────────────────────
+      - name: Verify Deployment
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          kubectl rollout status deployment/${{ inputs.service_name }}-service \
+            -n production \
+            --timeout=5m
+
+          echo "Pods running:"
+          kubectl get pods -n production -l app=${{ inputs.service_name }}-service
+
+          echo "Service health check:"
+          kubectl exec -n production \
+            $(kubectl get pod -n production -l app=${{ inputs.service_name }}-service -o jsonpath='{.items[0].metadata.name}') \
+            -- wget -qO- http://localhost:${{ inputs.service_port }}/healthz

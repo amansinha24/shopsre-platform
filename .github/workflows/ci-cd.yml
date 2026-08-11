@@ -1,0 +1,110 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+
+# ── Detect which service changed ──────────────────────────────
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.changes.outputs.auth }}
+      orders: ${{ steps.changes.outputs.orders }}
+      notifications: ${{ steps.changes.outputs.notifications }}
+      worker: ${{ steps.changes.outputs.worker }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            auth:
+              - 'services/auth/**'
+            orders:
+              - 'services/orders/**'
+            notifications:
+              - 'services/notifications/**'
+            worker:
+              - 'services/worker/**'
+            frontend:
+              - 'services/frontend/**'
+
+  # ── Auth Service ───────────────────────────────────────────────
+  auth:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.auth == 'true' }}
+    uses: ./.github/workflows/_reusable-go-service.yml
+    with:
+      service_name: auth
+      service_port: "8081"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # ── Orders Service ─────────────────────────────────────────────
+  orders:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.orders == 'true' }}
+    uses: ./.github/workflows/_reusable-go-service.yml
+    with:
+      service_name: orders
+      service_port: "8082"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # ── Notifications Service ──────────────────────────────────────
+  notifications:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.notifications == 'true' }}
+    uses: ./.github/workflows/_reusable-python-service.yml
+    with:
+      service_name: notifications
+      service_port: "8083"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # ── Worker Service ─────────────────────────────────────────────
+  worker:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.worker == 'true' }}
+    uses: ./.github/workflows/_reusable-go-service.yml
+    with:
+      service_name: worker
+      service_port: "8084"
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+  # ── Frontend ───────────────────────────────────────────────────
+  frontend:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.frontend == 'true' }}
+    uses: ./.github/workflows/_reusable-frontend.yml
+    with:
+      service_name: frontend
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
