@@ -1,5 +1,5 @@
 package main
-
+// ShopSRE Worker Service v1.0.0
 import (
 	"context"
 	"fmt"

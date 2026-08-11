@@ -1,3 +1,4 @@
+# ShopSRE Notifications Service v1.0.0
 import asyncio
 import json
 import logging
