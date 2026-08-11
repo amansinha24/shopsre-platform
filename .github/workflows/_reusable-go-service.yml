@@ -114,23 +114,24 @@ jobs:
           echo "Pushed ${{ env.IMAGE_URI }}:${{ github.sha }}"
 
       # ── Stage 10: Update image tag in Git ─────────────────────
-      # This is the GitOps step
-      # Updates helm/SERVICE/values.yaml with new image tag
-      # ArgoCD detects this change and deploys to EKS automatically
-      # GitHub Actions never touches kubectl or helm upgrade
       - name: Update image tag in Git
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Update image tag in values.yaml
-          sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
-            helm/${{ inputs.service_name }}/values.yaml
+          # Retry up to 5 times to handle concurrent pipeline conflicts
+          for i in 1 2 3 4 5; do
+            git pull origin main --rebase
 
-          git add helm/${{ inputs.service_name }}/values.yaml
-          git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]"
-          git push
+            sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
+              helm/${{ inputs.service_name }}/values.yaml
 
-          echo "Image tag updated in Git"
-          echo "ArgoCD will now detect this change and deploy to EKS"
+            git add helm/${{ inputs.service_name }}/values.yaml
+            git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]" || true
+
+            git push origin main && break || {
+              echo "Push failed, retrying in 5 seconds..."
+              sleep 5
+            }
+          done

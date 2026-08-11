@@ -90,18 +90,25 @@ jobs:
           docker push ${{ env.IMAGE_URI }}:${{ github.sha }}
           docker push ${{ env.IMAGE_URI }}:latest
 
-      # ── GitOps step ────────────────────────────────────────────
+# ── Stage 10: Update image tag in Git ─────────────────────
       - name: Update image tag in Git
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
-            helm/${{ inputs.service_name }}/values.yaml
+          # Retry up to 5 times to handle concurrent pipeline conflicts
+          for i in 1 2 3 4 5; do
+            git pull origin main --rebase
 
-          git add helm/${{ inputs.service_name }}/values.yaml
-          git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]"
-          git push
+            sed -i "s|tag: .*|tag: ${{ github.sha }}|g" \
+              helm/${{ inputs.service_name }}/values.yaml
 
-          echo "ArgoCD will now sync this change to EKS"
+            git add helm/${{ inputs.service_name }}/values.yaml
+            git commit -m "chore: update ${{ inputs.service_name }} image tag to ${{ github.sha }} [skip ci]" || true
+
+            git push origin main && break || {
+              echo "Push failed, retrying in 5 seconds..."
+              sleep 5
+            }
+          done
