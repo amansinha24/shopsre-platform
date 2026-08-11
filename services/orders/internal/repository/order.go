@@ -137,7 +137,7 @@ func (r *OrderRepository) GetByUserID(ctx context.Context, userID int64) ([]doma
 // NewDBConnection creates a PostgreSQL connection
 func NewDBConnection(host, port, user, password, dbname string) (*sql.DB, error) {
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		host, port, user, password, dbname,
 	)
 

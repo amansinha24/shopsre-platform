@@ -1,4 +1,4 @@
-// ShopSRE Frontend v1.0.0
+// ShopSRE Frontend v1.0.1
 import React, { useState, useEffect } from 'react';
 import { authAPI, ordersAPI, workerAPI } from './api/client';
 import './App.css';
